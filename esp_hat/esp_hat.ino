@@ -58,8 +58,6 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
 }
 
 void setup() {
-  Serial.begin(9600);
-
   //LED strip setup
   rightStrip.begin();  // INITIALIZE NeoPixel strip object (REQUIRED)
   leftStrip.begin();
@@ -90,8 +88,6 @@ void loop() {
 
   if (currentMillis - previousMillis > interval) {  //update LED's 50 times a second
     previousMillis = currentMillis;
-    Serial.println(leftLegPressure);
-    Serial.println(rightLegPressure);
     left_LED_value = map(leftLegPressure, 0, 8000, 0, 10);
     right_LED_value = map(rightLegPressure, 0, 8000, 0, 10);
     if (right_LED_value < 0){

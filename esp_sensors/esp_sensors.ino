@@ -16,11 +16,12 @@
 // Define DHT22 parameters
 int sensorPin = A0;
 float sensorData = 0;
-float sensorCallibrationValue = 900;
-bool leftLeg = false;
+float sensorCalibrationValue = 1000;
+bool leftLeg = true;
 
 // Responder MAC Address (Replace with your responders MAC Address)
 uint8_t broadcastAddress[] = { 0x84, 0xFC, 0xE6, 0x84, 0x3E, 0xA8 };
+uint8_t broadcastAddressLaptop[] = { 0x84, 0xFC, 0xE6, 0x84, 0x32, 0x0C };
 
 // Define data structure
 typedef struct struct_message {
@@ -47,7 +48,6 @@ void setup() {
   delay(100);
   pinMode(sensorPin, INPUT);
 
-
   // Set ESP32 WiFi mode to Station temporarly
   WiFi.mode(WIFI_STA);
 
@@ -60,8 +60,18 @@ void setup() {
   // Define callback
   esp_now_register_send_cb(OnDataSent);
 
-
   memcpy(peerInfo.peer_addr, broadcastAddress, 6);
+  
+  peerInfo.channel = 0;
+  peerInfo.encrypt = false;
+
+  if (esp_now_add_peer(&peerInfo) != ESP_OK) {
+    // Serial.println("Failed to add peer");
+    return;
+  }
+
+  memcpy(peerInfo.peer_addr, broadcastAddressLaptop, 6);
+  
   peerInfo.channel = 0;
   peerInfo.encrypt = false;
 
@@ -74,12 +84,14 @@ void setup() {
 }
 
 void loop() {
-  sensorData = (short)(sensorCallibrationValue / (1.0 - analogRead(sensorPin) / 4095.0) - sensorCallibrationValue);
+  sensorData = (short)(sensorCalibrationValue / (1.0 - analogRead(sensorPin) / 4095.0) - sensorCalibrationValue);
 
-  // Add to structured data object
+  // Add sensorData to structured data object
   myData.pressValue = sensorData;
 
   // Send data
   esp_now_send(broadcastAddress, (uint8_t *)&myData, sizeof(myData));
-  delay(100);
+  esp_now_send(broadcastAddressLaptop, (uint8_t *)&myData, sizeof(myData));
+
+  delay(100);
 }
