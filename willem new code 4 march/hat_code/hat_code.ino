@@ -26,8 +26,6 @@ bool connectionLiveLeft = false;
 bool connectionLiveRight = false;
 unsigned long connectionMadeMillisLeft = 0;
 unsigned long connectionMadeMillisRight = 0;
-byte left_LED_value;
-byte right_LED_value;
 
 
 Adafruit_NeoPixel leftStrip(LED_COUNT, leftLEDPin, NEO_GRB + NEO_KHZ800);
@@ -58,7 +56,7 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
 }
 
 void setup() {
-  Serial.begin(9600);
+
 
   //LED strip setup
   rightStrip.begin();  // INITIALIZE NeoPixel strip object (REQUIRED)
@@ -84,36 +82,18 @@ void setup() {
 void loop() {
   //change 2000 to proper values
   unsigned long currentMillis = millis();
-  connectionLiveLeft = !(connectionMadeMillisLeft + 200 < currentMillis);  //if it hasn't created a connection for more than 100 ms, turn leds white
-    connectionLiveRight = !(connectionMadeMillisRight + 200 < currentMillis);
+  connectionLiveLeft = !(connectionMadeMillisLeft + 100 < currentMillis);  //if it hasn't created a connection for more than 100 ms, turn leds white
+    connectionLiveRight = !(connectionMadeMillisRight + 100 < currentMillis);
 
 
   if (currentMillis - previousMillis > interval) {  //update LED's 50 times a second
     previousMillis = currentMillis;
-    Serial.println(leftLegPressure);
-    Serial.println(rightLegPressure);
-    left_LED_value = map(leftLegPressure, 0, 8000, 0, 10);
-    right_LED_value = map(rightLegPressure, 0, 8000, 0, 10);
-    if (right_LED_value < 0){
-      right_LED_value = 0;
-    }
-    if (left_LED_value < 0){
-      right_LED_value = 0;
-    }
-    if (right_LED_value > 10){
-      right_LED_value = 10;
-    }
-    if (left_LED_value > 10){
-      right_LED_value = 10;
-    }
-
-    changeLEDStrips(true, left_LED_value);
-    changeLEDStrips(false, right_LED_value);
+    changeLEDStrips(true, map(leftLegPressure, 0, 1000, 0, 10));
+    changeLEDStrips(false, map(rightLegPressure, 0, 1000, 0, 10));
   }
 }
 
 void changeLEDStrips(bool leftStripBoolean, byte intensity) {  //intensity ranges from 1-10, leftstrip true means change left strip, false means change right strip
-  
   if (leftStripBoolean) {
     leftStrip.clear();
 
@@ -244,5 +224,5 @@ void showCaseLEDS() {
   changeLEDStrips(true, 2);
   delay(100);
   changeLEDStrips(true, 1);
-  delay(200);
+  delay(200);
 }
