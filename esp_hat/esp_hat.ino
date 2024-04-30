@@ -28,6 +28,12 @@ unsigned long connectionMadeMillisLeft = 0;
 unsigned long connectionMadeMillisRight = 0;
 byte left_LED_value;
 byte right_LED_value;
+bool calibrationFinished = false;
+bool calibrationStarted = false;
+int maxPressure = 0;
+int minPressure = 99999;
+unsigned long startTimeCalibration;
+
 
 
 Adafruit_NeoPixel leftStrip(LED_COUNT, leftLEDPin, NEO_GRB + NEO_KHZ800);
@@ -50,10 +56,10 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
   //mydata.leftleg tells us which leg sent this info.
   if (myData.leftLeg) {
     leftLegPressure = myData.pressValue;
-    connectionMadeMillisLeft = millis();   //start timer to check connection
+    connectionMadeMillisLeft = millis();  //start timer to check connection
   } else {
     rightLegPressure = myData.pressValue;
-    connectionMadeMillisRight = millis();   //start timer to check connection
+    connectionMadeMillisRight = millis();  //start timer to check connection
   }
 }
 
@@ -65,6 +71,7 @@ void setup() {
   leftStrip.show();
   rightStrip.setBrightness(250);  // Set BRIGHTNESS to about 1/5 (max = 255)
   leftStrip.setBrightness(250);
+  // Serial.begin(9600);
 
   // Start ESP32 in Station mode
   WiFi.mode(WIFI_STA);
@@ -80,36 +87,40 @@ void setup() {
 }
 
 void loop() {
-  //change 2000 to proper values
-  unsigned long currentMillis = millis();
-  connectionLiveLeft = !(connectionMadeMillisLeft + 200 < currentMillis);  //if it hasn't created a connection for more than 100 ms, turn leds white
+  if (!calibrationFinished) {
+    calibrate();
+  } else {
+    //change 2000 to proper values
+    unsigned long currentMillis = millis();
+    connectionLiveLeft = !(connectionMadeMillisLeft + 200 < currentMillis);  //if it hasn't created a connection for more than 100 ms, turn leds white
     connectionLiveRight = !(connectionMadeMillisRight + 200 < currentMillis);
 
 
-  if (currentMillis - previousMillis > interval) {  //update LED's 50 times a second
-    previousMillis = currentMillis;
-    left_LED_value = map(leftLegPressure, 0, 8000, 0, 10);
-    right_LED_value = map(rightLegPressure, 0, 8000, 0, 10);
-    if (right_LED_value < 0){
-      right_LED_value = 0;
-    }
-    if (left_LED_value < 0){
-      right_LED_value = 0;
-    }
-    if (right_LED_value > 10){
-      right_LED_value = 10;
-    }
-    if (left_LED_value > 10){
-      right_LED_value = 10;
-    }
+    if (currentMillis - previousMillis > interval) {  //update LED's 50 times a second
+      previousMillis = currentMillis;
+      left_LED_value = map(leftLegPressure, 0, 8000, 0, 10);
+      right_LED_value = map(rightLegPressure, 0, 8000, 0, 10);
+      if (right_LED_value < 0) {
+        right_LED_value = 0;
+      }
+      if (left_LED_value < 0) {
+        right_LED_value = 0;
+      }
+      if (right_LED_value > 10) {
+        right_LED_value = 10;
+      }
+      if (left_LED_value > 10) {
+        right_LED_value = 10;
+      }
 
-    changeLEDStrips(true, left_LED_value);
-    changeLEDStrips(false, right_LED_value);
+      changeLEDStrips(true, left_LED_value);
+      changeLEDStrips(false, right_LED_value);
+    }
   }
 }
 
 void changeLEDStrips(bool leftStripBoolean, byte intensity) {  //intensity ranges from 1-10, leftstrip true means change left strip, false means change right strip
-  
+
   if (leftStripBoolean) {
     leftStrip.clear();
 
@@ -154,6 +165,37 @@ void changeLEDStrips(bool leftStripBoolean, byte intensity) {  //intensity range
     }
     rightStrip.show();  // Update strip with new contents
   }
+}
+
+void calibrate() {
+  if (!calibrationStarted) {
+    calibrationStarted = true;
+      startTimeCalibration = millis();  // get first time this function is run
+  }
+
+  if (millis() - startTimeCalibration < 5000) {  // Run this loop for first 5 seconds of this function
+
+    // Take the average of a sliding window (5 observations) and keep track of minimum value
+    // Also, fade lights green slowly to show you need to apply no pressure
+    signalMinPressureLEDs();
+  } else if (millis() - startTimeCalibration < 10000) {
+
+    //for 5 seconds, take the average of a sliding window (5 observations) and keep track of maximum value
+    //Also, blink lights red quickly to show that you need to apply max pressure
+    signalMaxPressureLEDs();
+  } else {
+    calibrationFinished = true;
+  }
+}
+
+void signalMinPressureLEDs() {
+  float fluctuatingValue = 127 * (1 + (sin(2.0 * PI * (millis() % 1000) / 1000.0)));  // Calculate the angle in radians
+  Serial.println(fluctuatingValue);
+  leftStrip.setPixelColor(int(fluctuatingValue), 0, 0, 0);
+  rightStrip.setPixelColor(int(fluctuatingValue), 0, 0, 0);
+}
+
+void signalMaxPressureLEDs() {
 }
 
 void showCaseLEDS() {
